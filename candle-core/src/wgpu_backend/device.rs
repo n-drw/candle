@@ -222,8 +222,8 @@ impl WgpuDevice {
                     required_features: features,
                     required_limits: limits,
                     memory_hints: wgpu::MemoryHints::Performance,
+                    trace: wgpu::Trace::Off,
                 },
-                None,
             )
             .await
             .map_err(|err| crate::Error::Wgpu(err.to_string().into()))?;

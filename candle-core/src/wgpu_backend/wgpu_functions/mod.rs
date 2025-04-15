@@ -785,7 +785,7 @@ pub(crate) fn flush_gpu_command(
                 {
                     let span1 = span!(Level::INFO, "Device Poll");
                     let _enter1 = span1.enter();
-                    dev.device.poll(wgpu::Maintain::wait()).panic_on_timeout();
+                    dev.device.poll(wgpu::PollType::Wait);
                 }
 
                 if index > 0 {
@@ -1218,7 +1218,7 @@ pub async fn wait_for_gpu_buffer_async(dev: &WgpuDevice) -> crate::Result<()> {
     // Poll the device in a blocking manner so that our future resolves.
     // In an actual application, `device.poll(...)` should
     // be called in an event loop or on another thread.
-    dev.device.poll(wgpu::Maintain::wait()).panic_on_timeout();
+    dev.device.poll(wgpu::PollType::Wait);
 
     // Awaits until `buffer_future` can be read from
     if let Ok(Ok(())) = receiver.recv_async().await {
@@ -1327,7 +1327,7 @@ async fn read_from_staging_buffer_async<T: bytemuck::Pod>(
     // Poll the device in a blocking manner so that our future resolves.
     // In an actual application, `device.poll(...)` should
     // be called in an event loop or on another thread.
-    dev.device.poll(wgpu::Maintain::wait()).panic_on_timeout();
+    dev.device.poll(wgpu::PollType::Wait);
 
     // Awaits until `buffer_future` can be read from
     if let Ok(Ok(())) = receiver.recv_async().await {

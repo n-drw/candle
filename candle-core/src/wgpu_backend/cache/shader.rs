@@ -92,8 +92,10 @@ fn load_pipeline(
     let compilation_options = if consts.is_empty() {
         wgpu::PipelineCompilationOptions::default()
     } else {
+        let constants_vec: Vec<(&str, f64)> = consts.iter().map(|(k, v)| (k.as_str(), *v)).collect();
+        
         wgpu::PipelineCompilationOptions {
-            constants: consts,
+            constants: &constants_vec.clone(),
             zero_initialize_workgroup_memory: true,
         }
     };
