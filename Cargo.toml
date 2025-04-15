@@ -9,11 +9,13 @@ members = [
     "candle-wasm-examples/*",
     "candle-wasm-tests",
     "tensor-tools",
+    "candle-wgpu-kernels",
 ]
 exclude = [
    "candle-book",
    "candle-flash-attn",
    "candle-kernels",
+   
    "candle-metal-kernels",
    "candle-onnx",
 ]
@@ -76,6 +78,15 @@ ug-metal = "0.3.1"
 yoke = { version = "0.7.2", features = ["derive"] }
 zip = { version = "1.1.1", default-features = false }
 metal = { version = "0.27.0", features = ["mps"]}
+
+#wgpu dependencies:
+wgpu = {version="25.0.0", features=["fragile-send-sync-non-atomic-wasm"]}
+bytemuck = { version = "1.15", features = [ "derive" ] }
+pollster = "0.3.0"
+flume = "0.11.0"
+tracing-mutex = "0.3.0"
+web-time = "=1.1.0"
+rustc-hash = "2.0.0"
 
 [profile.release-with-debug]
 inherits = "release"

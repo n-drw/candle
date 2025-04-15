@@ -46,3 +46,8 @@ out.wav
 bria.mp3
 bria.safetensors
 bria.wav
+
+#generated wgpu shader files
+**/generated/*.pwgsl_generated_*.wgsl
+wgpu_*_test_*_[a,b,c,d,e].json
+wgpu_loader_indices.toml
