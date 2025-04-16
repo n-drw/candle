@@ -53,9 +53,27 @@ impl LogitsProcessor {
         Ok(next_token)
     }
 
+    async fn sample_argmax_async(&mut self, logits: Tensor) -> Result<u32> {
+        let logits_v: Vec<f32> = logits.to_vec1_async().await?;
+        let next_token = logits_v
+            .iter()
+            .enumerate()
+            .max_by(|(_, u), (_, v)| u.total_cmp(v))
+            .map(|(i, _)| i as u32)
+            .unwrap();
+        Ok(next_token)
+    }
+
+    #[cfg_attr(all(target_arch = "wasm32", feature="wgpu"), deprecated(note="use `sample_gumbel_softmax_async` for wasm support instead"))]
+    #[cfg_attr(all(target_arch = "wasm32", feature = "wgpu"), allow(deprecated))]
     fn sample_gumbel_softmax(&mut self, logits: &Tensor, temperature: f64) -> Result<u32> {
         let sampled = candle_nn::sampling::gumbel_softmax(logits, temperature, candle::D::Minus1)?;
         sampled.to_vec0::<u32>()
+    }
+
+    async fn sample_gumbel_softmax_async(&mut self, logits: &Tensor, temperature: f64) -> Result<u32> {
+        let sampled = candle_nn::sampling::gumbel_softmax(logits, temperature, candle::D::Minus1)?;
+        sampled.to_vec0_async::<u32>().await
     }
 
     fn sample_multinomial(&mut self, prs: &Vec<f32>) -> Result<u32> {
@@ -143,6 +161,7 @@ impl LogitsProcessor {
 
         let next_token = match &self.sampling {
             Sampling::ArgMax => self.sample_argmax_async(logits).await?,
+            Sampling::GumbelSoftmax { temperature } => self.sample_gumbel_softmax_async(&logits, *temperature).await?,
             Sampling::All { temperature } => {
                 let prs : Vec<f32> = prs(*temperature,&logits,f).await?;
                 self.sample_multinomial(&prs)?

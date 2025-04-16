@@ -157,6 +157,4 @@ fn convert_f16_to_f32(@builtin(global_invocation_id) global_id: vec3<u32>) {
     v_dest[id + 1] = x2;
 }
 
-
-
 #endif

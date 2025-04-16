@@ -101,7 +101,6 @@ pub fn queue_convert_f16_to_f32(
     Ok(())
 }
 
-
 pub fn queue_convert(
     dev: &WgpuDevice,
     buffer_dest: BufferReferenceId,
@@ -114,6 +113,7 @@ pub fn queue_convert(
     queue.add_layout1(input_layout);
 
     let pipeline = match dest_dtype {
+        crate::DType::F16 => Pipelines::Convert(dev.get_dtype(input_dtype)?, Functions::ConvertToF32),
         crate::DType::U32 => Pipelines::Convert(dev.get_dtype(input_dtype)?, Functions::ConvertToU32),
         crate::DType::F32 => Pipelines::Convert(dev.get_dtype(input_dtype)?, Functions::ConvertToF32),
         crate::DType::I64 => Pipelines::ConvertToI64(

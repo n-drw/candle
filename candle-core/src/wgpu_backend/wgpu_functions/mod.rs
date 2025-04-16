@@ -15,6 +15,7 @@ pub mod upsample;
 pub mod where_cond;
 
 use rustc_hash::FxHasher;
+use wgpu::PollError;
 use std::{
     collections::HashMap, hash::{Hash, Hasher}, num::NonZeroU64
 };
@@ -44,7 +45,7 @@ pub use conv2d::{queue_conv1d, queue_conv1d_transpose, queue_conv2d, queue_conv2
 pub use convert::{
     queue_convert, queue_convert_f32_to_u8,
     queue_convert_u32_to_u8, queue_convert_u8_to_f32,
-    queue_convert_f32_to_f16, queue_convert_f16_to_f32
+    queue_convert_f32_to_f16, queue_convert_f16_to_f32,
 };
 pub use copy::{queue_copy, queue_copy2d, queue_copy3d, queue_copy3d_padded, queue_copy_strided, queue_transpose3d};
 pub use gather::{queue_gather, queue_index_add_inplace, queue_scatter_add_inplace};
@@ -1218,7 +1219,9 @@ pub async fn wait_for_gpu_buffer_async(dev: &WgpuDevice) -> crate::Result<()> {
     // Poll the device in a blocking manner so that our future resolves.
     // In an actual application, `device.poll(...)` should
     // be called in an event loop or on another thread.
-    dev.device.poll(wgpu::PollType::Wait);
+    if let Err(PollError::Timeout) = dev.device.poll(wgpu::PollType::Wait) {
+        panic!("failed to poll device");
+    }
 
     // Awaits until `buffer_future` can be read from
     if let Ok(Ok(())) = receiver.recv_async().await {
@@ -1327,7 +1330,9 @@ async fn read_from_staging_buffer_async<T: bytemuck::Pod>(
     // Poll the device in a blocking manner so that our future resolves.
     // In an actual application, `device.poll(...)` should
     // be called in an event loop or on another thread.
-    dev.device.poll(wgpu::PollType::Wait);
+    if let Err(PollError::Timeout) = dev.device.poll(wgpu::PollType::Wait) {
+        panic!("failed to poll device");
+    }
 
     // Awaits until `buffer_future` can be read from
     if let Ok(Ok(())) = receiver.recv_async().await {

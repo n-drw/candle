@@ -1433,3 +1433,35 @@ async fn pow() -> Result<()> {
     );
     Ok(())
 }
+#[test]
+async fn test_flip_1d() -> Result<()> {
+    let t = Tensor::arange(0.0, 5.0, &Device::Cpu)?.reshape((5,))?;
+    let flipped = t.flip(&[0])?;
+    let expected = Tensor::from_vec(vec![4.0, 3.0, 2.0, 1.0, 0.0], (5,), &Device::Cpu)?;
+    candle::test_utils::assert_tensor_eq(&flipped, &expected)?;
+    Ok(())
+}
+#[test]
+async fn test_flip_2d() -> Result<()> {
+    let t = Tensor::arange(0.0, 6.0, &Device::Cpu)?.reshape((2, 3))?;
+    let flipped = t.flip(&[0, 1])?;
+    let expected = Tensor::from_vec(
+        vec![5.0, 4.0, 3.0, 2.0, 1.0, 0.0],
+        (2, 3),
+        &Device::Cpu,
+    )?;
+    candle::test_utils::assert_tensor_eq(&flipped, &expected)?;
+    Ok(())
+}
+#[test]
+async fn test_flip_3d_channels() -> Result<()> {
+    let t = Tensor::arange(0.0, 12.0, &Device::Cpu)?.reshape((2, 2, 3))?;
+    let flipped = t.flip(&[2])?;
+    let expected = Tensor::from_vec(
+        vec![2.0, 1.0, 0.0, 5.0, 4.0, 3.0, 8.0, 7.0, 6.0, 11.0, 10.0, 9.0],
+        (2, 2, 3),
+        &Device::Cpu,
+    )?;
+    candle::test_utils::assert_tensor_eq(&flipped, &expected)?;
+    Ok(())
+}

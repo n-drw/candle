@@ -3,12 +3,14 @@ use std::sync::{Arc, Mutex};
 
 use std::hash::Hash;
 
+use half::{bf16, f16};
 use rand::SeedableRng;
 use tracing::instrument;
 use wgpu::{Backends, InstanceDescriptor, InstanceFlags};
+use zip::result::DateTimeRangeError;
 
 use crate::backend::{BackendDevice, BackendStorage};
-use crate::{notImplemented, wrongType, DType, Layout};
+use crate::{notImplemented, wrongType, DType, Layout, Tensor};
 
 #[cfg(feature = "wgpu_debug")]
 use super::debug_info::{DebugInfo, MInfo, Measurements, ShaderInfo};
@@ -190,13 +192,13 @@ impl WgpuDevice {
         let mut features = wgpu::Features::empty();
 
         let adapter_features = adapter.features();
-        let adatper_limits = adapter.limits();
+        let adapter_limits = adapter.limits();
 
         limits.min_storage_buffer_offset_alignment =
-            adatper_limits.min_storage_buffer_offset_alignment;
+            adapter_limits.min_storage_buffer_offset_alignment;
         limits.max_storage_buffers_per_shader_stage = 5;
-        limits.max_storage_buffer_binding_size = adatper_limits.max_storage_buffer_binding_size; //use as much as possible
-        limits.max_buffer_size = adatper_limits.max_buffer_size; //use as much as possible
+        limits.max_storage_buffer_binding_size = adapter_limits.max_storage_buffer_binding_size; //use as much as possible
+        limits.max_buffer_size = adapter_limits.max_buffer_size; //use as much as possible
         if adapter_features.contains(wgpu::Features::SHADER_INT64) {
             features.insert(wgpu::Features::SHADER_INT64);
         }
@@ -768,7 +770,7 @@ impl crate::backend::BackendDevice for WgpuDevice {
     }
 
     fn storage_from_slice<T: crate::WithDType>(&self, data: &[T]) -> crate::Result<Self::Storage> {
-        let buffer;
+        let mut buffer;
         if T::DTYPE == crate::DType::F32 {
             let data =
                 unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f32, data.len()) };
@@ -777,7 +779,21 @@ impl crate::backend::BackendDevice for WgpuDevice {
             let data =
                 unsafe { std::slice::from_raw_parts(data.as_ptr() as *const u32, data.len()) };
             buffer = self.alloc_from_slice(T::DTYPE, data)?;
-        } else {
+        }  else if T::DTYPE == crate::DType::F16 {
+            let data =
+                unsafe  { std::slice::from_raw_parts(data.as_ptr() as *const half::f16, data.len()) };
+            let layout = Layout::contiguous(&[data.len() as usize]);
+            buffer = self.alloc_from_slice(T::DTYPE, &data)?;
+            buffer = buffer.to_dtype(&layout, DType::F32)?;
+        } else if T::DTYPE == crate::DType::BF16 {
+            let data = 
+                unsafe { std::slice::from_raw_parts(data.as_ptr() as *const _, data.len()) };
+            let data: Vec<f32> = data.iter().map(|&x| bf16::from_bits(x).to_f32()).collect::<Vec<f32>>();
+            let layout = Layout::contiguous(&[data.len() as usize]);
+            buffer = self.alloc_from_slice(DType::F32, &data)?;
+            buffer = buffer.to_dtype(&layout, DType::F32)?;
+        }
+        else {
             // Panic if T is not f32 or u32
             wrongType!(storage_from_slice, T::DTYPE);
         }
