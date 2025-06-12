@@ -78,3 +78,7 @@ required-features = ["metal"]
 [[example]]
 name = "wgpu_basics"
 required-features = ["wgpu"]
+
+[[example]]
+name = "cuda_basics"
+required-features = ["cuda"]

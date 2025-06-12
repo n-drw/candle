@@ -3,7 +3,6 @@ members = [
     "candle-core",
     "candle-datasets",
     "candle-examples",
-    "candle-book",
     "candle-nn",
     "candle-pyo3",
     "candle-transformers",
@@ -13,6 +12,7 @@ members = [
     "candle-wgpu-kernels",
 ]
 exclude = [
+   "candle-book",
    "candle-flash-attn",
    "candle-kernels",
    
@@ -22,7 +22,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.8.4"
+version = "0.9.1"
 edition = "2021"
 description = "Minimalist ML framework."
 repository = "https://github.com/huggingface/candle"

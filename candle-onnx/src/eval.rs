@@ -1,7 +1,9 @@
 use crate::onnx::attribute_proto::AttributeType;
 use crate::onnx::tensor_proto::DataType;
 use crate::onnx::{self, GraphProto};
+use candle::Module;
 use candle::{bail, DType, Device, Result, Tensor};
+use candle_nn::activation::PReLU;
 use std::collections::{HashMap, HashSet};
 
 pub type Value = Tensor;
@@ -581,7 +583,13 @@ fn simple_eval_(
                     &Device::Cpu,
                 )?);
 
-                let xs = Tensor::ones(input.shape(), value.dtype(), input.device())?
+                let shape_vec: Vec<usize> = input
+                    .to_vec1::<i64>()?
+                    .iter()
+                    .map(|&x| x as usize)
+                    .collect();
+
+                let xs = Tensor::ones(shape_vec, value.dtype(), input.device())?
                     .broadcast_mul(&value)?;
                 values.insert(node.output[0].clone(), xs);
             }
@@ -991,6 +999,14 @@ fn simple_eval_(
                 let output = input.relu()?;
                 values.insert(node.output[0].clone(), output);
             }
+            "PRelu" => {
+                // https://onnx.ai/onnx/operators/onnx__PRelu.html
+                let input = get(&node.input[0])?;
+                let slope = get(&node.input[1])?;
+
+                let output = PReLU::new(slope.clone(), false).forward(input)?;
+                values.insert(node.output[0].clone(), output);
+            }
             "Ceil" => {
                 let input = get(&node.input[0])?;
                 let output = input.ceil()?;
@@ -1228,7 +1244,7 @@ fn simple_eval_(
                     }
 
                     let indexes = Tensor::arange_step(s, e, p, data.device())?;
-                    out = out.index_select(&indexes, axis)?
+                    out = out.contiguous()?.index_select(&indexes, axis)?
                 }
                 values.insert(node.output[0].clone(), out);
             }
@@ -1948,6 +1964,273 @@ fn simple_eval_(
             "Sign" => {
                 let input = get(&node.input[0])?;
                 let output = input.sign()?;
+                values.insert(node.output[0].clone(), output);
+            }
+            "Resize" => {
+                let input = get(&node.input[0])?;
+
+                if input.rank() != 4 {
+                    bail!("Unsupported rank for nearest resize: {}", input.rank());
+                }
+
+                let scales = if node.input.len() > 2 && !node.input[2].is_empty() {
+                    Some(get(&node.input[2])?)
+                } else {
+                    None
+                };
+
+                let sizes = if node.input.len() > 3 && !node.input[3].is_empty() {
+                    Some(get(&node.input[3])?)
+                } else {
+                    None
+                };
+
+                let output_dims = match (scales, sizes) {
+                    (Some(_), Some(_)) => {
+                        bail!("Scales and sizes cannot both be set for Resize operation")
+                    }
+                    (Some(scales_tensor), None) => {
+                        let scale_values = scales_tensor.to_vec1::<f32>()?;
+                        input
+                            .dims()
+                            .iter()
+                            .enumerate()
+                            .map(|(i, &d)| (d as f32 * scale_values[i]) as usize)
+                            .collect::<Vec<_>>()
+                    }
+                    (None, Some(sizes_tensor)) => sizes_tensor
+                        .to_vec1::<i64>()?
+                        .iter()
+                        .map(|&d| d as usize)
+                        .collect::<Vec<_>>(),
+                    (None, None) => bail!("Either scales or sizes should be present"),
+                };
+
+                let coordinate_transformation_mode =
+                    get_attr_opt::<str>(node, "coordinate_transformation_mode")?
+                        .unwrap_or("half_pixel");
+                // Interpolation mode: nearest, linear, or cubic.
+                let mode = get_attr_opt::<str>(node, "mode")?.unwrap_or("nearest");
+                // How to determine the "nearest" pixel in nearest interpolation mode.
+                let nearest_mode =
+                    get_attr_opt::<str>(node, "nearest_mode")?.unwrap_or("round_prefer_floor");
+
+                if mode != "nearest" {
+                    bail!("Unsupported resize mode: {}", mode);
+                }
+
+                if nearest_mode != "floor" {
+                    bail!("Unsupported nearest_mode for resize: {}", nearest_mode);
+                }
+
+                if coordinate_transformation_mode != "asymmetric" {
+                    bail!(
+                        "Unsupported coordinate_transformation_mode for resize: {}",
+                        coordinate_transformation_mode
+                    );
+                }
+
+                let h = output_dims[2];
+                let w = output_dims[3];
+                let output = input.upsample_nearest2d(h, w)?;
+
+                values.insert(node.output[0].clone(), output);
+            }
+            "Trilu" => {
+                let input = get(&node.input[0])?;
+
+                // Get the diagonal offset 'k' from the second input if provided
+                let k = if node.input.len() > 1 && !node.input[1].is_empty() {
+                    get(&node.input[1])?.to_vec0::<i64>()?
+                } else {
+                    0
+                };
+
+                // Get the 'upper' attribute
+                let upper = get_attr_opt::<i64>(node, "upper")?.copied().unwrap_or(1);
+
+                // For batched inputs, we need to handle each matrix separately
+                let dims = input.dims();
+                if dims.len() < 2 {
+                    bail!("Trilu expects input with at least 2 dimensions: {:?}", dims);
+                }
+
+                // Get the last two dimensions which represent the matrix
+                let n = dims[dims.len() - 2];
+                let m = dims[dims.len() - 1];
+                let max_dim = std::cmp::max(n, m);
+
+                // Handle the diagonal offset k
+                let mask = if k != 0 {
+                    let mut data = vec![0u32; n * m];
+                    for i in 0..n {
+                        for j in 0..m {
+                            if (upper != 0 && (j as i64) >= (i as i64) + k)
+                                || (upper == 0 && (j as i64) <= (i as i64) + k)
+                            {
+                                data[i * m + j] = 1u32;
+                            }
+                        }
+                    }
+                    Tensor::from_vec(data, (n, m), input.device())?.to_dtype(input.dtype())?
+                } else if upper == 0 {
+                    Tensor::tril2(max_dim, input.dtype(), input.device())?
+                } else {
+                    Tensor::triu2(max_dim, input.dtype(), input.device())?
+                };
+
+                let final_mask = if n != m {
+                    mask.narrow(0, 0, n)?.narrow(1, 0, m)?
+                } else {
+                    mask
+                };
+
+                let output = (input * &final_mask)?;
+
+                values.insert(node.output[0].clone(), output);
+            }
+            "ScatterND" => {
+                let data = get(&node.input[0])?;
+
+                let indices = get(&node.input[1])?;
+                let indices = indices.to_dtype(DType::I64)?;
+
+                let updates = get(&node.input[2])?;
+
+                let reduction = get_attr_opt::<str>(node, "reduction")?.unwrap_or("none");
+
+                let indices_shape = indices.dims();
+                let data_shape = data.dims();
+                let updates_shape = updates.dims();
+
+                // Last dimension of indices represents the depth of indexing
+                let k = indices_shape.last().unwrap().clone();
+
+                if k > data.rank() {
+                    bail!("ScatterND expects k (indices.shape[-1]) to be at most the rank of data");
+                }
+
+                let num_updates = indices_shape[..indices_shape.len() - 1]
+                    .iter()
+                    .product::<usize>();
+
+                let flat_indices = if indices.rank() == 1 && k == 1 {
+                    indices.unsqueeze(0)?
+                } else {
+                    indices.reshape((num_updates, k))?
+                };
+
+                // Calculate the shape of each update element
+                let update_element_shape = if k < data_shape.len() {
+                    data_shape[k..].to_vec()
+                } else {
+                    vec![]
+                };
+
+                // Expected shape for updates based on indices and target tensor
+                let expected_updates_shape = {
+                    let mut shape = indices_shape[..indices_shape.len() - 1].to_vec();
+                    shape.extend(&update_element_shape);
+                    shape
+                };
+
+                // Validate or reshape updates to expected shape
+                let updates = if updates.dims() != expected_updates_shape {
+                    if updates.rank() == 0 {
+                        // Handle scalar updates
+                        let mut target_shape = vec![num_updates];
+                        target_shape.extend(&update_element_shape);
+                        updates.broadcast_as(target_shape)?
+                    } else {
+                        // Try to broadcast or reshape updates to expected shape
+                        let flat_shape =
+                            vec![num_updates, update_element_shape.iter().product::<usize>()];
+                        let flattened = updates.reshape(flat_shape)?;
+                        flattened.reshape(expected_updates_shape)?
+                    }
+                } else {
+                    updates.clone()
+                };
+
+                let mut output = data.clone();
+
+                // convert indices to flat indices
+                let mut flat_output = output.flatten_all()?;
+                let flat_updates = if update_element_shape.is_empty() {
+                    updates.reshape(num_updates)?
+                } else {
+                    let product = update_element_shape.iter().product::<usize>();
+                    updates.reshape((num_updates, product))?
+                };
+
+                // Calculate strides for the output tensor
+                let mut strides: Vec<usize> = vec![1];
+                for i in (0..data_shape.len() - 1).rev() {
+                    strides.push(strides.last().unwrap() * data_shape[i + 1]);
+                }
+                strides.reverse();
+
+                // Process each update
+                for i in 0..num_updates {
+                    let index_slice = flat_indices.narrow(0, i, 1)?;
+                    let indices_vec = index_slice.squeeze(0)?.to_vec1::<i64>()?;
+
+                    // Convert multi-dimensional indices to flat index
+                    let mut flat_idx: usize = 0;
+                    for (dim, &idx) in indices_vec.iter().enumerate() {
+                        let dim_size = data_shape[dim] as i64;
+                        let norm_idx = if idx < 0 { dim_size + idx } else { idx };
+
+                        if norm_idx < 0 || norm_idx >= dim_size {
+                            bail!(
+                                "Index {} out of bounds for dimension {} with size {}",
+                                idx,
+                                dim,
+                                dim_size
+                            );
+                        }
+
+                        flat_idx += (norm_idx as usize) * strides[dim];
+                    }
+
+                    // Extract current update
+                    let update_slice = if update_element_shape.is_empty() {
+                        flat_updates.narrow(0, i, 1)?.squeeze(0)?
+                    } else {
+                        flat_updates.narrow(0, i, 1)?
+                    };
+
+                    match reduction {
+                        "add" => {
+                            if update_element_shape.is_empty() {
+                                let existing = flat_output.narrow(0, flat_idx, 1)?;
+                                let new_value = existing.add(&update_slice.unsqueeze(0)?)?;
+                                flat_output = flat_output.slice_scatter(&new_value, 0, flat_idx)?;
+                            } else {
+                                let slice_size = update_element_shape.iter().product::<usize>();
+                                let existing = flat_output.narrow(0, flat_idx, slice_size)?;
+                                let new_value = existing.add(&update_slice)?;
+                                flat_output = flat_output.slice_scatter(&new_value, 0, flat_idx)?;
+                            }
+                        }
+                        "none" | _ => {
+                            if update_element_shape.is_empty() {
+                                flat_output = flat_output.slice_scatter(
+                                    &update_slice.unsqueeze(0)?,
+                                    0,
+                                    flat_idx,
+                                )?;
+                            } else {
+                                flat_output =
+                                    flat_output.slice_scatter(&update_slice, 0, flat_idx)?;
+                            }
+                        }
+                    }
+                }
+
+                // Reshape flat output back to original shape
+                output = flat_output.reshape(data_shape.to_vec())?;
+
                 values.insert(node.output[0].clone(), output);
             }
             op_type => bail!("unsupported op_type {op_type} for op {node:?}"),

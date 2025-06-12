@@ -33,6 +33,7 @@ pub mod ops;
 pub mod optim;
 pub mod rnn;
 pub mod rotary_emb;
+pub mod sampling;
 pub mod sequential;
 pub mod var_builder;
 pub mod var_map;

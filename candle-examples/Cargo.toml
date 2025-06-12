@@ -59,7 +59,7 @@ bindgen_cuda = { version = "0.1.5", optional = true }
 [features]
 accelerate = ["dep:accelerate-src", "candle/accelerate", "candle-nn/accelerate", "candle-transformers/accelerate"]
 cuda = ["candle/cuda", "candle-nn/cuda", "candle-transformers/cuda", "dep:bindgen_cuda"]
-cudnn = ["candle/cudnn"]
+cudnn = ["candle/cudnn", "candle-nn/cudnn", "candle-transformers/cudnn"]
 flash-attn = ["cuda", "candle-transformers/flash-attn", "dep:candle-flash-attn"]
 mkl = ["dep:intel-mkl-src", "candle/mkl", "candle-nn/mkl", "candle-transformers/mkl"]
 nccl = ["cuda", "cudarc/nccl", "dep:half"]
@@ -71,6 +71,7 @@ mimi = ["cpal", "symphonia", "rubato"]
 wgpu = ["candle/wgpu", "candle-nn/wgpu"]
 wgpu_debug = ["wgpu", "candle/wgpu_debug"]
 default = []
+snac = ["cpal", "symphonia", "rubato"]
 depth_anything_v2 = ["palette", "enterpolation"]
 
 [[example]]
@@ -83,6 +84,10 @@ required-features = ["pyo3"]
 
 [[example]]
 name = "onnx"
+required-features = ["onnx"]
+
+[[example]]
+name = "onnx-llm"
 required-features = ["onnx"]
 
 [[example]]
@@ -108,6 +113,10 @@ required-features = ["candle-datasets"]
 [[example]]
 name = "mimi"
 required-features = ["mimi"]
+
+[[example]]
+name = "snac"
+required-features = ["snac"]
 
 [[example]]
 name = "encodec"
