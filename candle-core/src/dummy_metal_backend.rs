@@ -230,6 +230,10 @@ impl crate::backend::BackendDevice for MetalDevice {
         fail!()
     }
 
+    fn ones_impl(&self, _shape: &Shape, _dtype: DType) -> Result<Self::Storage> {
+        Err(Error::NotCompiledWithMetalSupport)
+    }
+
     fn zeros_impl(&self, _shape: &Shape, _dtype: DType) -> Result<Self::Storage> {
         Err(Error::NotCompiledWithMetalSupport)
     }

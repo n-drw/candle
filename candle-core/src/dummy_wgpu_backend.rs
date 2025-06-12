@@ -254,15 +254,31 @@ impl crate::backend::BackendStorage for WgpuStorage {
         Err(Error::NotCompiledWithWgpuSupport)
     }
 
-    fn scatter_add(
-        &self,
+    fn scatter_set(
+            &mut self,
+            _: &Layout,
+            _: &Self,
+            _: &Layout,
+            _: &Self,
+            _: &Layout,
+            _: usize,
+        ) -> Result<()> {
+       Err(Error::NotCompiledWithWgpuSupport) 
+    }
+
+    fn const_set(&mut self, _: crate::scalar::Scalar, _: &Layout) -> Result<()> {
+        Err(Error::NotCompiledWithWgpuSupport)
+    }
+
+    fn scatter_add_set(
+        &mut self,
         _: &Layout,
         _: &Self,
         _: &Layout,
         _: &Self,
         _: &Layout,
         _: usize,
-    ) -> Result<Self> {
+    ) -> Result<()> {
         Err(Error::NotCompiledWithWgpuSupport)
     }
 

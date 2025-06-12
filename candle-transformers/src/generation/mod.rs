@@ -176,6 +176,9 @@ impl LogitsProcessor {
                 let mut prs: Vec<f32> = prs(*temperature,&logits,f).await?;
                 self.sample_topk_topp(&mut prs, *k, *p as f32)?
             }
+            Sampling::GumbelSoftmax { temperature } => {
+                self.sample_gumbel_softmax(&logits, *temperature)?
+            }
         };
         Ok(next_token)
     }

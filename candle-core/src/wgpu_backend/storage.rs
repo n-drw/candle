@@ -1,4 +1,4 @@
-use crate::{DType, Layout, Shape};
+use crate::{DType, Error, Layout, Shape};
 
 use super::{
     cache::BufferReferenceId,
@@ -853,15 +853,31 @@ impl crate::backend::BackendStorage for WgpuStorage {
         Ok(buffer_dest)
     }
 
-    fn scatter_add(
-        &self,
+    fn scatter_set(
+            &mut self,
+            _: &Layout,
+            _: &Self,
+            _: &Layout,
+            _: &Self,
+            _: &Layout,
+            _: usize,
+        ) -> crate::Result<()> {
+        Err(Error::NotCompiledWithWgpuSupport)
+    }
+
+    fn const_set(&mut self, _: crate::scalar::Scalar, _: &Layout) -> crate::Result<()> {
+        Err(Error::NotCompiledWithWgpuSupport)
+    }
+
+    fn scatter_add_set(
+        &mut self,
         l: &Layout,
         indexes: &Self,
         indexes_l: &Layout,
         source: &Self,
         source_l: &Layout,
         d: usize,
-    ) -> crate::Result<Self> {
+    ) -> crate::Result<()> {
         let buffer_dest = self.device().alloc_uninit_size(
             self.dtype,
             l.shape().elem_count() 
@@ -879,7 +895,7 @@ impl crate::backend::BackendStorage for WgpuStorage {
             d,
         )?;
 
-        Ok(buffer_dest)
+        Ok(())
     }
 
     fn index_select(

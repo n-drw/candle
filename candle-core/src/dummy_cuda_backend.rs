@@ -226,6 +226,10 @@ impl crate::backend::BackendDevice for CudaDevice {
         fail!()
     }
 
+    fn ones_impl(&self, _shape: &Shape, _dtype: DType) -> Result<Self::Storage> {
+        Err(Error::NotCompiledWithCudaSupport)
+    }
+
     fn zeros_impl(&self, _shape: &Shape, _dtype: DType) -> Result<Self::Storage> {
         Err(Error::NotCompiledWithCudaSupport)
     }

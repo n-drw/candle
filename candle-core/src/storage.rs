@@ -86,6 +86,7 @@ impl Storage {
             Storage::Cpu(storage) => storage.const_set(v, l),
             Storage::Cuda(storage) => storage.const_set(v, l),
             Storage::Metal(storage) => storage.const_set(v, l),
+            Storage::Wgpu(storage) => storage.const_set(v, l),
         }
     }
 
@@ -769,12 +770,10 @@ impl Storage {
                 s.scatter_add_set(l, indexes, indexes_l, source, source_l, d)?;
             }
             (Self::Metal(s), Self::Metal(indexes), Self::Metal(source)) => {
-                let storage = s.scatter_add(l, indexes, indexes_l, source, source_l, d)?;
-                Ok(Self::Metal(storage))
+                s.scatter_add_set(l, indexes, indexes_l, source, source_l, d)?;
             }
             (Self::Wgpu(s), Self::Wgpu(indexes), Self::Wgpu(source)) => {
-                let storage = s.scatter_add(l, indexes, indexes_l, source, source_l, d)?;
-                Ok(Self::Wgpu(storage))
+                s.scatter_add_set(l, indexes, indexes_l, source, source_l, d)?;
             }
             _ => unreachable!(),
         }

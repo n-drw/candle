@@ -2746,6 +2746,21 @@ impl BackendDevice for CpuDevice {
         Ok(storage)
     }
 
+    fn ones_impl(&self, shape: &Shape, dtype: DType) -> Result<CpuStorage> {
+        let elem_count = shape.elem_count();
+        let storage = match dtype {
+            DType::U8 => CpuStorage::U8(vec![1u8; elem_count]),
+            DType::U32 => CpuStorage::U32(vec![1u32; elem_count]),
+            DType::I64 => CpuStorage::I64(vec![1i64; elem_count]),
+            DType::BF16 => CpuStorage::BF16(vec![bf16::ONE; elem_count]),
+            DType::F16 => CpuStorage::F16(vec![f16::ONE; elem_count]),
+            DType::F32 => CpuStorage::F32(vec![1f32; elem_count]),
+            DType::F64 => CpuStorage::F64(vec![1f64; elem_count]),
+        };
+        Ok(storage)
+    }
+
+
     fn zeros_impl(&self, shape: &Shape, dtype: DType) -> Result<CpuStorage> {
         let elem_count = shape.elem_count();
         let storage = match dtype {
