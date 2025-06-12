@@ -112,12 +112,12 @@ impl Default for WgpuDeviceConfig {
     fn default() -> WgpuDeviceConfig {
         WgpuDeviceConfig {
             meta_buffer_size : 10*1024*1024,
-            max_workload_size :  1024u64*1024*1024*2, 
-            buffer_cached_max_allowed_size : 1024*1024*1024*8,                                        
+            max_workload_size :  1024u64*1024*1024*24, 
+            buffer_cached_max_allowed_size : 1024*1024*1024*16,                                        
             use_cache : true,
             flush_gpu_before_buffer_init : true,
             buffer_mapping_size : 3,
-            backend: WgpuBackends::metal() | WgpuBackends::vulkan(), //directx shader compilation is much slower than vulkan. (like 300secs vs 5s there is a faster copmiler, but this would need additional .dlls, and with this compilations needs 30s as well)
+            backend: WgpuBackends::browser_webgpu() | WgpuBackends::gl(), //directx shader compilation is much slower than vulkan. (like 300secs vs 5s there is a faster copmiler, but this would need additional .dlls, and with this compilations needs 30s as well)
         }
     }
 }

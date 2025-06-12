@@ -17,8 +17,8 @@ candle-transformers = { workspace = true , features = ["wgpu"]}
 candle-wgpu-kernels = { workspace = true }
 num-traits = { workspace = true }
 tokenizers = { workspace = true, features = ["unstable_wasm"] }
-pollster = "0.3.0"
-env_logger = "0.11.3"
+pollster = "0.4.0"
+env_logger = "0.11.8"
 
 # App crates.
 anyhow = { workspace = true }
@@ -28,24 +28,24 @@ rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 safetensors = { workspace = true }
-image = "0.25.1"
+image = "0.25.6"
 
 # Wasm specific crates.
 console_error_panic_hook = "0.1.7"
 getrandom = { version = "0.3", features = ["wasm_js"] }
 gloo = "0.11"
-wasm-bindgen = "0.2.87"
-wasm-bindgen-futures = "0.4.37"
-serde-wasm-bindgen = "0.6.0"
+wasm-bindgen = "0.2.100"
+wasm-bindgen-futures = "0.4.50"
+serde-wasm-bindgen = "0.6.5"
 wasm-helper = {path = "../wasm-helper"}
 web-time = {workspace = true}
 
-js-sys = "0.3.69"
+js-sys = "0.3.77"
 wasm-logger = "0.2.0"
-thiserror = "1.0.61"
+thiserror = "2.0.12"
 
 [dependencies.web-sys]
-version = "0.3.4"
+version = "0.3.77"
 features = [
   'Headers',
   'Request',
@@ -67,13 +67,13 @@ features = [
 ]
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.45"
+wasm-bindgen-test = "0.3.50"
 futures = "0.3"
 
 
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-tokio = { version = "1.41.0", features = ["full"] }
+tokio = { version = "1.44.2", features = ["full"] }
 
 [features]
 wgpu = ["candle-nn/wgpu", "candle/wgpu", "candle-transformers/wgpu"]

@@ -463,7 +463,7 @@ fn set_buffers(
         #[cfg(feature = "wgpu_debug")]
         {
             let ele_size = *index - start_index;
-            if ele_size >= wgpu::QUERY_SET_MAX_QUERIES / 2 - 1{
+            if ele_size >= (wgpu::QUERY_SET_MAX_QUERIES / 2 - 1).try_into().unwrap() {
                 break;
             }
         }

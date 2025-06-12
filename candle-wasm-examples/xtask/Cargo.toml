@@ -10,15 +10,15 @@ path = "src/main.rs"
 
 [dependencies]
 # The dependencies in this config have no transitive dependencies.
-anyhow = "1.0.71"
-env_logger = { version = "0.10.0", default-features = false }
-regex-lite = "0.1.5" 
-log = "0.4.18"
+anyhow = "1.0.98"
+env_logger = { version = "0.11.8", default-features = false }
+regex-lite = "0.1.6" 
+log = "0.4.27"
 pico-args = { version = "0.5.0", features = [
     "eq-separator",
     "short-space-opt",
     "combined-flags",
 ] }
-xshell = "0.2.3"
-notify = "6.1.1"
-glob = "0.3.1"
+xshell = "0.2.7"
+notify = "8.0.0"
+glob = "0.3.2"

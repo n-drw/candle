@@ -47,6 +47,7 @@ fn read_tensor<R: std::io::Read, S: Into<Shape>>(
     let mut data_t = vec![0f32; shape.elem_count()];
     r.read_f32_into::<LittleEndian>(&mut data_t)?;
     let tensor = Tensor::from_vec(data_t, shape, dev)?;
+    console_log!("Read tensor: {:?}", tensor);
     Ok(tensor)
 }
 
@@ -175,6 +176,8 @@ struct TransformerWeights {
 
 impl TransformerWeights {
     fn from_reader<R: std::io::Read>(r: &mut R, c: &Config, dev: &Device) -> Result<Self> {
+        web_sys::console::log_1(&"Loading model weights...".into());
+
         let token_embedding_table = read_tensor(r, (c.vocab_size, c.dim), dev)?;
         let rms_att_weight = read_tensor(r, (c.n_layers, c.dim), dev)?;
         let wq = read_tensor(r, (c.n_layers, c.dim, c.dim), dev)?;
@@ -189,6 +192,7 @@ impl TransformerWeights {
         let head_size = c.head_size();
         let freq_cis_real = read_tensor(r, (c.seq_len, head_size / 2), dev)?;
         let freq_cis_imag = read_tensor(r, (c.seq_len, head_size / 2), dev)?;
+
         Ok(Self {
             token_embedding_table,
             rms_att_weight,
